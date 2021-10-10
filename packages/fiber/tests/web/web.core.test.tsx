@@ -90,7 +90,7 @@ describe('web core', () => {
     }
     let scene: Scene = null!
     await act(async () => {
-      scene = render(<Mesh />, canvas).getState().scene
+      scene = (await render(<Mesh />, canvas)).getState().scene
     })
 
     expect(scene.children[0].type).toEqual('Mesh')
@@ -105,7 +105,7 @@ describe('web core', () => {
     const Empty = () => null
     let scene: Scene = null!
     await act(async () => {
-      scene = render(<Empty />, canvas).getState().scene
+      scene = (await render(<Empty />, canvas)).getState().scene
     })
 
     expect(scene.type).toEqual('Scene')
@@ -135,7 +135,7 @@ describe('web core', () => {
 
     let scene: Scene = null!
     await act(async () => {
-      scene = render(<Parent />, canvas).getState().scene
+      scene = (await render(<Parent />, canvas)).getState().scene
     })
 
     expect(scene.children[0].type).toEqual('Group')
@@ -182,7 +182,7 @@ describe('web core', () => {
 
     let scene: Scene = null!
     await act(async () => {
-      scene = render(<Component />, canvas).getState().scene
+      scene = (await render(<Component />, canvas)).getState().scene
     })
 
     expect(scene.children[0].position.x).toEqual(7)
@@ -192,13 +192,15 @@ describe('web core', () => {
   it('updates types & names', async () => {
     let scene: Scene = null!
     await act(async () => {
-      scene = render(
-        <mesh>
-          <meshBasicMaterial name="basicMat">
-            <color attach="color" args={[0, 0, 0]} />
-          </meshBasicMaterial>
-        </mesh>,
-        canvas,
+      scene = (
+        await render(
+          <mesh>
+            <meshBasicMaterial name="basicMat">
+              <color attach="color" args={[0, 0, 0]} />
+            </meshBasicMaterial>
+          </mesh>,
+          canvas,
+        )
       ).getState().scene
     })
 
@@ -208,13 +210,15 @@ describe('web core', () => {
     expect((scene.children[0] as THREE.Mesh<THREE.BoxGeometry, MeshBasicMaterial>).material.name).toEqual('basicMat')
 
     await act(async () => {
-      scene = render(
-        <mesh>
-          <meshStandardMaterial name="standardMat">
-            <color attach="color" args={[255, 255, 255]} />
-          </meshStandardMaterial>
-        </mesh>,
-        canvas,
+      scene = (
+        await render(
+          <mesh>
+            <meshStandardMaterial name="standardMat">
+              <color attach="color" args={[255, 255, 255]} />
+            </meshStandardMaterial>
+          </mesh>,
+          canvas,
+        )
       ).getState().scene
     })
 
@@ -229,11 +233,13 @@ describe('web core', () => {
   it('attaches Object3D children that use attach', async () => {
     let scene: Scene = null!
     await act(async () => {
-      scene = render(
-        <hasObject3dMember>
-          <mesh attach="attachment" />
-        </hasObject3dMember>,
-        canvas,
+      scene = (
+        await render(
+          <hasObject3dMember>
+            <mesh attach="attachment" />
+          </hasObject3dMember>,
+          canvas,
+        )
       ).getState().scene
     })
 
@@ -247,11 +253,13 @@ describe('web core', () => {
   it('can attach a Scene', async () => {
     let scene: Scene = null!
     await act(async () => {
-      scene = render(
-        <hasObject3dMember>
-          <scene attach="attachment" />
-        </hasObject3dMember>,
-        canvas,
+      scene = (
+        await render(
+          <hasObject3dMember>
+            <scene attach="attachment" />
+          </hasObject3dMember>,
+          canvas,
+        )
       ).getState().scene
     })
 
@@ -266,11 +274,13 @@ describe('web core', () => {
     it('attachFns as strings', async () => {
       let scene: Scene = null!
       await act(async () => {
-        scene = render(
-          <hasObject3dMethods>
-            <mesh attachFns={['customAttach', 'detach']} />
-          </hasObject3dMethods>,
-          canvas,
+        scene = (
+          await render(
+            <hasObject3dMethods>
+              <mesh attachFns={['customAttach', 'detach']} />
+            </hasObject3dMethods>,
+            canvas,
+          )
         ).getState().scene
       })
 
@@ -297,20 +307,22 @@ describe('web core', () => {
       let detachedMesh: Mesh = null!
 
       await act(async () => {
-        scene = render(
-          <hasObject3dMethods>
-            <mesh
-              attachFns={[
-                (mesh: Mesh) => {
-                  attachedMesh = mesh
-                },
-                (mesh: Mesh) => {
-                  detachedMesh = mesh
-                },
-              ]}
-            />
-          </hasObject3dMethods>,
-          canvas,
+        scene = (
+          await render(
+            <hasObject3dMethods>
+              <mesh
+                attachFns={[
+                  (mesh: Mesh) => {
+                    attachedMesh = mesh
+                  },
+                  (mesh: Mesh) => {
+                    detachedMesh = mesh
+                  },
+                ]}
+              />
+            </hasObject3dMethods>,
+            canvas,
+          )
         ).getState().scene
       })
 
@@ -357,7 +369,8 @@ describe('web core', () => {
     let camera: Camera = null!
 
     await act(async () => {
-      camera = render(<group />, canvas, { orthographic: true, camera: { position: [0, 0, 5] } }).getState().camera
+      camera = (await render(<group />, canvas, { orthographic: true, camera: { position: [0, 0, 5] } })).getState()
+        .camera
     })
 
     expect(camera.type).toEqual('OrthographicCamera')
@@ -367,7 +380,7 @@ describe('web core', () => {
   it('should handle an performance changing functions', async () => {
     let state: UseStore<RootState> = null!
     await act(async () => {
-      state = render(<group />, canvas, {
+      state = await render(<group />, canvas, {
         dpr: [1, 2],
         performance: { min: 0.2 },
       })
@@ -404,7 +417,7 @@ describe('web core', () => {
   it('should set PCFSoftShadowMap as the default shadow map', async () => {
     let state: UseStore<RootState> = null!
     await act(async () => {
-      state = render(<group />, canvas, {
+      state = await render(<group />, canvas, {
         shadows: true,
       })
     })
@@ -415,7 +428,7 @@ describe('web core', () => {
   it('should set tonemapping to ACESFilmicToneMapping and outputEncoding to sRGBEncoding if linear is false', async () => {
     let state: UseStore<RootState> = null!
     await act(async () => {
-      state = render(<group />, canvas, {
+      state = await render(<group />, canvas, {
         linear: false,
       })
     })
@@ -444,9 +457,11 @@ describe('web core', () => {
   it('should set renderer props via gl prop', async () => {
     let gl: THREE.WebGLRenderer = null!
     await act(async () => {
-      gl = render(<group />, canvas, {
-        gl: { physicallyCorrectLights: true },
-      }).getState().gl
+      gl = (
+        await render(<group />, canvas, {
+          gl: { physicallyCorrectLights: true },
+        })
+      ).getState().gl
     })
 
     expect(gl.physicallyCorrectLights).toBe(true)
@@ -457,9 +472,11 @@ describe('web core', () => {
 
     let gl: Renderer = null!
     await act(async () => {
-      gl = render(<group />, canvas, {
-        gl: (canvas) => new Renderer({ canvas }),
-      }).getState().gl
+      gl = (
+        await render(<group />, canvas, {
+          gl: async (canvas) => new Renderer({ canvas }),
+        })
+      ).getState().gl
     })
 
     expect(gl instanceof Renderer).toBe(true)

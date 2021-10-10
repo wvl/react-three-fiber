@@ -4,57 +4,60 @@ import { RootTag } from 'react-reconciler'
 import { UseStore } from 'zustand'
 
 import { is } from '../core/is'
-import { Renderer, createStore, StoreProps, isRenderer, context, RootState, Size, calculateDpr } from '../core/store'
+import { createStore, StoreProps, context, RootState, Size, calculateDpr } from '../core/store'
 import { createRenderer, extend, Root } from '../core/renderer'
 import { createLoop, addEffect, addAfterEffect, addTail } from '../core/loop'
+import { EventManager } from '../core/events'
+
+import { GLFunction, GLRenderer, GLWebProps } from '../types/renderer'
+
 import { createPointerEvents as events } from './events'
 import { Canvas } from './Canvas'
-import { EventManager } from '../core/events'
+import { createRendererInstance } from './renderer'
+import { PromiseType } from '../types/utils'
 
 const roots = new Map<Element, Root>()
 const modes = ['legacy', 'blocking', 'concurrent'] as const
 const { invalidate, advance } = createLoop(roots)
 const { reconciler, applyProps } = createRenderer(roots)
 
-type Properties<T> = Pick<T, { [K in keyof T]: T[K] extends (_: any) => any ? never : K }[keyof T]>
-
-type GLProps =
-  | Renderer
-  | ((canvas: HTMLCanvasElement) => Renderer)
-  | Partial<Properties<THREE.WebGLRenderer> | THREE.WebGLRendererParameters>
-  | undefined
-
 export type RenderProps<TCanvas extends Element> = Omit<StoreProps, 'gl' | 'events' | 'size'> & {
-  gl?: GLProps
   events?: (store: UseStore<RootState>) => EventManager<TCanvas>
   size?: Size
   mode?: typeof modes[number]
   onCreated?: (state: RootState) => void
 }
 
-const createRendererInstance = <TElement extends Element>(gl: GLProps, canvas: TElement): THREE.WebGLRenderer => {
-  const customRenderer = (
-    typeof gl === 'function' ? gl(canvas as unknown as HTMLCanvasElement) : gl
-  ) as THREE.WebGLRenderer
-  if (isRenderer(customRenderer)) return customRenderer
-
-  const renderer = new THREE.WebGLRenderer({
-    powerPreference: 'high-performance',
-    canvas: canvas as unknown as HTMLCanvasElement,
-    antialias: true,
-    alpha: true,
-    ...gl,
-  })
-  if (gl) applyProps(renderer as any, gl as any)
-
-  return renderer
-}
-
-function render<TCanvas extends Element>(
+/**
+ * Accepts a function that should return a renderer
+ */
+async function render<TCanvas extends Element>(
   element: React.ReactNode,
   canvas: TCanvas,
-  { gl, size, mode = modes[1], events, onCreated, ...props }: RenderProps<TCanvas> = {},
-): UseStore<RootState> {
+  props?: RenderProps<TCanvas> & { gl: GLFunction },
+): Promise<UseStore<RootState<PromiseType<ReturnType<GLFunction>>>>>
+/**
+ * Accepts a renderer
+ */
+async function render<TCanvas extends Element>(
+  element: React.ReactNode,
+  canvas: TCanvas,
+  props?: RenderProps<TCanvas> & { gl: GLRenderer },
+): Promise<UseStore<RootState<GLRenderer>>>
+/**
+ * Accepts props to be passed to THREE.WebGLRenderer
+ */
+async function render<TCanvas extends Element>(
+  element: React.ReactNode,
+  canvas: TCanvas,
+  props?: RenderProps<TCanvas> & { gl?: GLWebProps },
+): Promise<UseStore<RootState<THREE.WebGLRenderer>>>
+
+async function render(
+  element: any,
+  canvas: any,
+  { gl, size, mode = modes[1], events, onCreated, ...props }: any = {},
+): Promise<UseStore<RootState>> {
   // Allow size to take on container bounds initially
   if (!size) {
     size = {
@@ -90,10 +93,10 @@ function render<TCanvas extends Element>(
     // If no root has been found, make one
 
     // Create gl
-    const glRenderer = createRendererInstance(gl, canvas)
+    const glRenderer = await createRendererInstance(gl, canvas, applyProps)
 
     // Enable VR if requested
-    if (props.vr) {
+    if (props.vr && glRenderer instanceof THREE.WebGLRenderer) {
       glRenderer.xr.enabled = true
       glRenderer.setAnimationLoop((timestamp) => advance(timestamp, true))
     }
@@ -155,8 +158,12 @@ function unmountComponentAtNode<TElement extends Element>(canvas: TElement, call
       if (state) {
         setTimeout(() => {
           state.events.disconnect?.()
-          state.gl?.renderLists?.dispose?.()
-          state.gl?.forceContextLoss?.()
+
+          if (state.gl && state.gl instanceof THREE.WebGLRenderer) {
+            state.gl.renderLists?.dispose?.()
+            state.gl.forceContextLoss?.()
+          }
+
           dispose(state)
           roots.delete(canvas)
           if (callback) callback(canvas)

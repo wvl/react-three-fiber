@@ -6,6 +6,8 @@ import shallow from 'zustand/shallow'
 import { prepare, Instance, InstanceProps } from './renderer'
 import { DomEvent, EventManager, ThreeEvent } from './events'
 
+import { Renderer } from '../types/renderer'
+
 export interface Intersection extends THREE.Intersection {
   eventObject: THREE.Object3D
 }
@@ -42,8 +44,6 @@ export type Performance = {
   regress: () => void
 }
 
-export type Renderer = { render: (scene: THREE.Scene, camera: THREE.Camera) => any }
-
 export const isRenderer = (def: Renderer) => !!def?.render
 export const isOrthographicCamera = (def: THREE.Camera): def is THREE.OrthographicCamera =>
   def && (def as THREE.OrthographicCamera).isOrthographicCamera
@@ -64,8 +64,8 @@ export type InternalState = {
   subscribe: (callback: React.MutableRefObject<RenderCallback>, priority?: number) => () => void
 }
 
-export type RootState = {
-  gl: THREE.WebGLRenderer
+export type RootState<TRenderer = Renderer> = {
+  gl: TRenderer
   scene: THREE.Scene
   camera: Camera
   controls: THREE.EventDispatcher | null
@@ -99,8 +99,8 @@ export type RootState = {
 export type FilterFunction = (items: THREE.Intersection[], state: RootState) => THREE.Intersection[]
 export type ComputeOffsetsFunction = (event: any, state: RootState) => { offsetX: number; offsetY: number }
 
-export type StoreProps = {
-  gl: THREE.WebGLRenderer
+export type StoreProps<TRenderer extends Renderer = Renderer> = {
+  gl: TRenderer
   size: Size
   vr?: boolean
   shadows?: boolean | Partial<THREE.WebGLShadowMap>
@@ -153,16 +153,18 @@ const createStore = (
     onPointerMissed,
   } = props
 
-  // Set shadowmap
-  if (shadows) {
-    gl.shadowMap.enabled = true
-    if (typeof shadows === 'object') Object.assign(gl.shadowMap, shadows)
-    else gl.shadowMap.type = THREE.PCFSoftShadowMap
-  }
+  if (gl instanceof THREE.WebGLRenderer) {
+    // Set shadowmap
+    if (shadows) {
+      gl.shadowMap.enabled = true
+      if (typeof shadows === 'object') Object.assign(gl.shadowMap, shadows)
+      else gl.shadowMap.type = THREE.PCFSoftShadowMap
+    }
 
-  // Set color management
-  if (!linear) gl.outputEncoding = THREE.sRGBEncoding
-  if (!flat) gl.toneMapping = THREE.ACESFilmicToneMapping
+    // Set color management
+    if (!linear) gl.outputEncoding = THREE.sRGBEncoding
+    if (!flat) gl.toneMapping = THREE.ACESFilmicToneMapping
+  }
 
   // clock.elapsedTime is updated using advance(timestamp)
   if (frameloop === 'never') {
@@ -343,7 +345,9 @@ const createStore = (
         camera.updateMatrixWorld()
       }
       // Update renderer
-      gl.setPixelRatio(viewport.dpr)
+      if (gl instanceof THREE.WebGLRenderer) {
+        gl.setPixelRatio(viewport.dpr)
+      }
       gl.setSize(size.width, size.height)
     },
     (state) => [state.viewport.dpr, state.size],
