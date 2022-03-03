@@ -4,6 +4,10 @@ import { ReactThreeTestInstance } from '../createTestInstance'
 
 import type { MockEventData, CreateCanvasParameters } from './internal'
 
+import type { WaitOptions } from '../../../shared/asyncUtils2'
+
+export { WaitOptions }
+
 export { ReactThreeTestInstance }
 
 export type MockSyntheticEvent = {
@@ -28,6 +32,7 @@ export type Renderer = {
   toGraph: () => SceneGraph | undefined
   fireEvent: (element: ReactThreeTestInstance, handler: string, data?: MockEventData) => Promise<any>
   advanceFrames: (frames: number, delta: number | number[]) => Promise<void>
+  waitFor: (callback: () => boolean | void, options?: Partial<WaitOptions>) => Promise<void>
 }
 
 export interface SceneGraphItem {

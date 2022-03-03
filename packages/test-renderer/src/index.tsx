@@ -17,8 +17,10 @@ import { createWebGLContext } from './createWebGLContext'
 import { createEventFirer } from './fireEvent'
 
 import type { MockScene } from './types/internal'
-import type { CreateOptions, Renderer, Act } from './types/public'
+import type { CreateOptions, Renderer, Act, WaitOptions } from './types/public'
 import { wrapFiber } from './createTestInstance'
+
+import { asyncUtils } from '../../shared/asyncUtils2'
 
 const create = async (element: React.ReactNode, options?: Partial<CreateOptions>): Promise<Renderer> => {
   const canvas = createCanvas({
@@ -39,8 +41,8 @@ const create = async (element: React.ReactNode, options?: Partial<CreateOptions>
   let scene: MockScene = null!
 
   await reconciler.act(async () => {
-    scene = (render(element, _fiber, { frameloop: 'never', ...options, events: undefined }).getState()
-      .scene as unknown) as MockScene
+    scene = render(element, _fiber, { frameloop: 'never', ...options, events: undefined }).getState()
+      .scene as unknown as MockScene
   })
 
   const _store = mockRoots.get(_fiber)!.store
@@ -111,10 +113,22 @@ const create = async (element: React.ReactNode, options?: Partial<CreateOptions>
 
       Promise.all(promises)
     },
+    waitFor: (callback: () => boolean | void, options?: Partial<WaitOptions>) => {
+      const { waitFor } = asyncUtils(reconciler.act, async () => {
+        // const fiber = mockRoots.get(_fiber)?.fiber
+        // if (fiber) {
+        //   await reconciler.act(async () => {
+        //     reconciler.updateContainer(element, fiber, null, () => null)
+        //   })
+        // }
+        render(element, canvas)
+      })
+      return waitFor(callback, options)
+    },
   }
 }
 
-const act = (_act as unknown) as Act
+const act = _act as unknown as Act
 
 export * as ReactThreeTest from './types'
 export default { create, act }

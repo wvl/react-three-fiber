@@ -11,12 +11,6 @@ import { asyncUtils } from '../../../shared/asyncUtils'
 
 import ReactThreeTestRenderer from '../index'
 
-const resolvers = []
-
-const { waitFor } = asyncUtils(ReactThreeTestRenderer.act, (resolver: () => void) => {
-  resolvers.push(resolver)
-})
-
 describe('ReactThreeTestRenderer Hooks', () => {
   it('can handle useThree hook', async () => {
     let result = {} as {
@@ -52,7 +46,7 @@ describe('ReactThreeTestRenderer Hooks', () => {
     // @ts-ignore
     jest.spyOn(Stdlib, 'GLTFLoader').mockImplementation(() => ({
       load: jest.fn().mockImplementation((url, onLoad) => {
-        onLoad(MockMesh)
+        setTimeout(() => onLoad(MockMesh), 100)
       }),
     }))
 
@@ -69,7 +63,9 @@ describe('ReactThreeTestRenderer Hooks', () => {
       </React.Suspense>,
     )
 
-    await waitFor(() => expect(renderer.scene.children[0]).toBeDefined())
+    await renderer.waitFor(() => {
+      expect(renderer.scene.children[0].instance).toBe(MockMesh)
+    })
 
     expect(renderer.scene.children[0].instance).toBe(MockMesh)
   })
